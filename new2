@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Set thresholds
+CPU_THRESHOLD=80
+MEM_THRESHOLD=90
+DISK_THRESHOLD=90
+NETWORK_THRESHOLD=100
+
+# Set log file
+LOG_FILE=/var/log/system_health.log
+
+# Function to collect system metrics
+collect_metrics() {
+  CPU_USAGE=$(top -b -n 1 | grep "Cpu(s)" | awk '{print $2}' | sed '/%//')
+  MEM_USAGE=$(free -m | awk '/Mem/ {print $3/$2 * 100}' | sed '/%//')
+  DISK_USAGE=$(df -h --output=pcent / | awk '{print $1}' | sed '/%//')
+  NETWORK_STATUS=$(ping -c 1 google.com &> /dev/null && echo "UP" || echo "DOWN")
+}
+
+# Function to check metrics and generate warnings
+check_metrics() {
+  if [ $CPU_USAGE -gt $CPU_THRESHOLD ]; then
+    echo "CPU usage high: $CPU_USAGE%" >> $LOG_FILE
+  fi
+  if [ $MEM_USAGE -gt $MEM_THRESHOLD ]; then
+    echo "Memory usage high: $MEM_USAGE%" >> $LOG_FILE
+  fi
+  if [ $DISK_USAGE -gt $DISK_THRESHOLD ]; then
+    echo "Disk usage high: $DISK_USAGE%" >> $LOG_FILE
+  fi
+  if [ "$NETWORK_STATUS"!= "UP" ]; then
+    echo "Network connectivity lost" >> $LOG_FILE
+  fi
+}
+
+# Function to log system status
+log_status() {
+  echo "System status at $(date):" >> $LOG_FILE
+  echo "CPU usage: $CPU_USAGE%" >> $LOG_FILE
+  echo "Memory usage: $MEM_USAGE%" >> $LOG_FILE
+  echo "Disk usage: $DISK_USAGE%" >> $LOG_FILE
+  echo "Network status: $NETWORK_STATUS" >> $LOG_FILE
+  echo "" >> $LOG_FILE
+}
+
+# Main loop
+while true; do
+  collect_metrics
+  check_metrics
+  log_status
+  sleep 60
+done
